@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+       ">
+    
+    <bean id="pooledConnectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory"
+		init-method="start" destroy-method="stop">
+		<property name="maxConnections" value="8" />
+		<property name="connectionFactory">
+   			<bean id="jmsConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+   				<property name="brokerURL" value="tcp://localhost:61616" />
+   				<property name="trustAllPackages" value="true"/>
+   			</bean>	
+   		</property>
+	</bean>
+
+	<bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+		<property name="connectionFactory" ref="pooledConnectionFactory" />
+	</bean>
+	
+	<camelContext xmlns="http://camel.apache.org/schema/spring">
+		<template id="producerTemplate"/>
+		<consumerTemplate id="consumerTemplate"/>
+		<route>
+			<from uri="timer:foo?period=1500" />
+			<to uri="jetty:http://localhost:8181/api/employee" />
+			<!-- <log message="Route message from service m1 to queue1 with data ${body}" /> -->
+			<!-- <to uri="activemq:queue:transformQueue" /> -->
+			<to uri="stream:out" />
+			<to uri="log:out" />
+		</route>
+
+		<route> 
+			<from uri="timer:foo?period=900" />
+			<to uri="jetty:http://localhost:8184/employeerule" />
+			<!-- <to uri="activemq:queue:transferQueue" /> -->
+			<!-- <log message="Route message from service m2 to transferQueue with data ${body}" /> -->
+			<to uri="stream:out" />
+			<to uri="log:out" />
+		</route>
+		
+		<route>
+			<from uri="timer:foo?period=1200" />
+			<to uri="jetty:http://localhost:8183/employeetransfer" />
+			<!-- <log message="Route message from service m3 to console with data ${body}" /> -->
+			<to uri="stream:out" />
+			<to uri="log:out" />
+		</route>
+		
+	</camelContext>
+
+</beans>
